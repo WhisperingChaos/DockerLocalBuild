@@ -146,7 +146,7 @@ A sample makefile project containing a makefile, the Component file and Componen
 
 ### Test Script
 
-The test script named: ["MakefileTest.sh"](https://github.com/WhisperingChaos/DockerLocalBuild/blob/master/scripts/MakefileTest.sh) exercisers a limited number of scenarios to better guarantee the proper operation of the makefile script.  "MakefileTest.sh" exists in the Root Resource Directory along with the "makefile" within the archive file containing the [Sample makefile](#sample-makefile).  Assuming the sample makefile has been downloaded, extracted, and account being employed to run the script is a member of the docker group:
+The test script named: ["MakefileTest.sh"](https://github.com/WhisperingChaos/DockerLocalBuild/blob/master/scripts/MakefileTest.sh) exercises a limited number of scenarios to better guarantee the proper operation of the makefile script.  "MakefileTest.sh" exists in the Root Resource Directory along with the "makefile" within the archive file containing the [Sample makefile](#sample-makefile).  Assuming the sample makefile has been downloaded, extracted, and account being employed to run the script is a member of the docker group:
 
 + Start a command line console.
 + Make the "sample" directory current.

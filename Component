@@ -1,0 +1,22 @@
+# Until an automated method becomes available, the list below must
+# enumerate all Components within this project and order them
+# from most to least dependent relative to all the other ones
+# named in this list.  Please ensure that the component also 
+# appears as a target of a rule below.
+#
+# Replace <ComponentName> with the desired one below.
+COMPONENT_LST:=<ComponentName>.img
+
+
+# Add a Component rule below to incorporate it into the project managed by this makefile.
+# The Component name must also appear as an element in the "COMPONENT_LST" above.
+#
+# In general, no prerequisite dependencies should be specified, as the default
+# rule for .img targets encodes a wildcard specifier which includes any file/directory 
+# mentioned in the Component's directory.  Please see the README.md file
+# for more detailed instructions.  Also view the Component file available in the
+# sample project's tar file: "sample.tar.gz".
+#
+# Replace <ComponentName> with the desired one below.
+<ComponentName>.img	:
+

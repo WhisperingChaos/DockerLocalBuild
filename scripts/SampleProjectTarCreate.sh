@@ -34,9 +34,8 @@ function Abort () {
 #
 ################################################################################
 function FilesTransfer () {
-  while true; do
-    read FileNm
-    if   [ $? -ne 0        ]; then break; fi
+  local FileNm
+  while read FileNm; do
     if   [ -e "$2/$FileNm" ]; then rm -rf "$2/$FileNm" > /dev/null; fi
     if ! [ -e "$1/$FileNm" ]; then Abort $LINENO "Source file missing: $1/$FileNm check transfer file list integrity."; fi
     cp -r "$1/$FileNm" "$2/" > /dev/nul;
@@ -62,9 +61,8 @@ function FilesTransfer () {
 function FilesObsolete () {
   # create associative array of File names that should exist
   declare -A FileListValid;
-  while true; do
-    read FileNm
-    if [ $? -ne 0 ]; then break; fi
+  local FileNm;
+  while read FileNm; do
     FileListValid["$FileNm"]="$FileNm";
   done
   # iterate through all files to ensure each one belongs.  If not, then remove.

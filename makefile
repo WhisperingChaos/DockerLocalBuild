@@ -26,34 +26,49 @@
 #    > Easily delete all the containers associated to a given image version.
 #    > Delete all docker image versions for a given image name.
 #
+#  Additional information can be found in the README.md file.
+#
 ###############################################################################
 SHELL = /bin/bash
-MAKEFILE_VERSION:=v0.5.0
+MAKEFILE_VERSION:=v0.6.0
+
+# Define the Root Resource Directory that contains all the various
+# objects required by this makefile build system.  
 ifndef BUILD_ROOT
   BUILD_ROOT:=.
 endif
 
-ifndef DOCKER_BUILD_OPTS
-  DOCKER_BUILD_OPTS:=-rm
+# Define the directory to implement the Image Catalog where the 
+# Image GUID List for each component resides.
+IMAGE_DIR:=$(BUILD_ROOT)/image
+ ifndef TMPDIR
+  TMPDIR:=/tmp
 endif
 
-IMAGE_DIR:=$(BUILD_ROOT)/image
+# A temporary file to remember reporting state across multiple Components.
+LOCAL_BUILD_HEADING_STATE:=$(shell mktemp)
 
 # Redirect make to search for files implementing Image GUID Lists in the
 # Image Catalog  
 vpath %.img $(IMAGE_DIR)
 
+# Define default build behavior to remove intermediate containers if build
+# should succeed 
+%.img: dockerOpts ?=-rm
 %.img: %/*
 ifdef idscope
-	$(error Did you mean to run 'Remove' instead of a build?)
+	$(error Did you mean to run 'Remove/Show' instead of a build?)
 endif
 ifdef complist
-	$(error Did you mean to run 'Remove' instead of a build?)
+	$(error Did you mean to run 'Remove/Show' instead of a build?)
 endif
 ifdef restrict
 	$(error Did you mean to run 'Remove' instead of a build?)
 endif
-	docker build $(DOCKER_BUILD_OPTS) -t "$(basename $@)" "$(BUILD_ROOT)/$(basename $@)"
+ifdef type
+	$(error Did you mean to run 'Show type=' instead of a Build?)
+endif
+	docker build $(dockerOpts) -t "$(basename $@)" "$(BUILD_ROOT)/$(basename $@)"
 	mkdir -p "$(IMAGE_DIR)"
 	"$(BUILD_ROOT)/scripts/ImageMaintenance.sh" Add "$(IMAGE_DIR)/$@" "$(basename $@)"
 	
@@ -64,32 +79,65 @@ all: allAfterInclude
 include Component
 
 allAfterInclude: $(COMPONENT_LST)
-
+.PHONY: help
 help:
-	"$(BUILD_ROOT)/scripts/MakefileHelp.sh" $(MAKEFILE_VERSION) 
-Remove:
+	"$(BUILD_ROOT)/scripts/MakefileHelp.sh" $(MAKEFILE_VERSION)
+.PHONY: Remove
+.PHONY: CommonParamsAssert
+.PHONY: RestrictAssert
+.PHONY: DoIt
+.PHONY: TypeAssert
+.PHONY: TypeNoAssert
+Remove: CommonParamsAssert RestrictAssert TypeNoAssert Remove.DoIt
+
+Show:   CommonParamsAssert RestrictNoAssert TypeAssert Show.DoIt
+
+CommonParamsAssert:
 ifndef complist
 	$(error Please specify complist='<ComponentName>.img' or 'All')
 endif
 ifneq ($(idscope),Current)
 ifneq ($(idscope),All)
 ifneq ($(idscope),AllExceptCurrent)
-	$(error Please specify idscope='Current' or 'All')
+	$(error Please specify idscope='Current', 'All', or 'AllExceptCurrent')
 endif
 endif
 endif
+
+RestrictAssert:
 ifdef restrict
 ifneq ($(restrict),OnlyContainers)
 	$(error Please specify restrict=OnlyContainers or remove it.)
 endif
 endif
-ifeq ($(complist),All)
-	for i in $(COMPONENT_LST); do if [ -f "$(IMAGE_DIR)/$$i" ]; then "$(BUILD_ROOT)/scripts/ImageMaintenance.sh" Remove$(restrict) $(idscope) "$(IMAGE_DIR)/$$i"; fi done
-else
-	for i in $(complist);      do if [ -f "$(IMAGE_DIR)/$$i" ]; then "$(BUILD_ROOT)/scripts/ImageMaintenance.sh" Remove$(restrict) $(idscope) "$(IMAGE_DIR)/$$i"; fi done
+
+RestrictNoAssert:
+ifdef restrict
+	$(error Did you mean to run 'Remove' instead of a Show?)
 endif
 
+TypeAssert:
+ifneq ($(type),images)
+ifneq ($(type),ps)
+	$(error Please specify type='images' or 'ps')
+endif
+endif
 
+TypeNoAssert:
+ifdef type
+	$(error Did you mean to run 'Show type=' instead of a Remove?)
+endif
+
+Remove.DoIt Show.DoIt:
+ifeq ($(complist),All)
+	@if [ -e "$(LOCAL_BUILD_HEADING_STATE)" ]; then rm -f "$(LOCAL_BUILD_HEADING_STATE)"; fi
+	@for i in $(COMPONENT_LST); do if [ -f "$(IMAGE_DIR)/$$i" ]; then "$(BUILD_ROOT)/scripts/ImageMaintenance.sh" $(basename $@)$(restrict)$(type) $(idscope) "$(IMAGE_DIR)/$$i" "$(LOCAL_BUILD_HEADING_STATE)" "$(dockerOpts)" ; fi done
+	@if [ -e "$(LOCAL_BUILD_HEADING_STATE)" ]; then rm -f "$(LOCAL_BUILD_HEADING_STATE)"; fi
+else
+	@if [ -e "$(LOCAL_BUILD_HEADING_STATE)" ]; then rm -f "$(LOCAL_BUILD_HEADING_STATE)"; fi
+	@for i in $(complist);      do if [ -f "$(IMAGE_DIR)/$$i" ]; then "$(BUILD_ROOT)/scripts/ImageMaintenance.sh" $(basename $@)$(restrict)$(type) $(idscope) "$(IMAGE_DIR)/$$i" "$(LOCAL_BUILD_HEADING_STATE)" "$(dockerOpts)" ; fi done
+	@if [ -e "$(LOCAL_BUILD_HEADING_STATE)" ]; then rm -f "$(LOCAL_BUILD_HEADING_STATE)"; fi
+endif
 
 ###############################################################################
 # 

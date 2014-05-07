@@ -24,8 +24,9 @@ source "$INC_ImageInterface/ImageInterface.sh";
 ##           added  by this routine. 
 ###############################################################################
 function ImageIDToNameMapCreate (){
-  for i in $( docker images | grep -v "^<none>" | awk "{print \"$1[\"\$3\"]=\"\$1\":\"\$2;}" | grep -v "=REPOSITORY:TAG" | grep -v "=ubuntu:"); do
-   eval $i
+  local ImageOutput
+  for ImageOutput in $( docker images | grep -v "^<none>" | awk "{print \"$1[\"\$3\"]=\"\$1\":\"\$2;}" | grep -v "=REPOSITORY:TAG" | grep -v "=ubuntu:"); do
+   eval $ImageOutput
   done
 }
 ###############################################################################
@@ -44,11 +45,8 @@ function ImageIDToNameMapCreate (){
 ##           the stream.
 ###############################################################################
 ConvertIDToCompKey() {
-while true; do
-  local ImageID;
-  read ImageID;
-  if [ $? -ne 0 ]       ; then return 0; fi
-  if [ "$ImageID" = "" ]; then return 0; fi
+local ImageID;
+while read ImageID; do
   ImageID=`ImageIDFullConstruct $ImageID $1`;
   if [ "$ImageID" = "" ]; then return 0; fi
   echo "$ImageID";
@@ -171,7 +169,7 @@ function Current () {
 function CurrentRemove () {
   Current "$1" | RemoveImage;
   if [ $? -ne 0 ]; then return 1; fi
-  local FileNmPthTmp="/tmp/`date +%C%y_%m_%d_%H_%M_%S`_$RANDOM_$(basename '$1').tmp";
+  local FileNmPthTmp=`mktemp`;
   if [ $? -ne 0 ]; then return 1; fi
   sed '$d' "$1" > "$FileNmPthTmp";
   if [ $? -ne 0 ]; then return 1; fi
@@ -254,21 +252,22 @@ function AllExceptCurrentRemove () {
 ## 
 ###############################################################################
 function RemoveImage () {
-  while true; do
-    local ImageID;
-    read ImageID;
-    if [ $? -ne 0 ]       ; then return 0; fi
-    if [ "$ImageID" = "" ]; then return 0; fi
+  declare -A ImageIdToName;
+  ImageIDToNameMapCreate ImageIdToName;
+  local ImageID;
+  while read ImageID; do
+    local ImageIDdisp=`ImageIDFullConstruct $ImageID 'ImageIdToName'`
     local DockerMess=$(docker rmi "$ImageID" 2>&1 ; echo PIPE_STATUS: $?);
     echo $DockerMess | grep "PIPE_STATUS: 0" > /dev/nul;
     if [ $? -ne 0 ]; then
       echo $DockerMess | grep "^Error: No such image:" > /dev/nul;
       if [ $? -ne 0 ]; then
-        echo "Error: While removing Docker image: $DockerMess";
+        echo "Error: While removing Docker image: $DockerMess" >&2;
         return 1;
       fi
     fi
-    echo "Success: Removed Docker image: $ImageID";
+    ImageIDdisp=`ImageIDdisplay $ImageIDdisp`;
+    echo "Success: Removed Docker image: '$ImageIDdisp'";
   done;
   return 0;
 }

@@ -105,8 +105,33 @@ function ImageIDdisplay () {
   PrefixNm[0]='TK';
   PrefixNm[1]='SK';
   PrefixNm[2]='LK';
+  PrefixNm[3]='00';
+  
+  ImageIDobtain $1 'PrefixNm'
+}
+###############################################################################
+##
+##  Purpose:
+##    Given an image GUID composite key, extract the image GUID according the 
+##    Docker ID preference of [TK], then [SK], then [LK].
+##
+##  Inputs:
+##    $1 - Composite image GUID;
+##    $2 - An array of key types in order of preference. The last item in the
+##         array must be "00". 
+## 
+##  Outputs:
+##    When Successful:
+##      One of the keys in Docker perfered order.
+##    When Failure:
+##      Null string.
+##
+###############################################################################
+function ImageIDobtain () {
   for (( i=0; i < 3; i++ )); do
-    local KeyID=$(echo "$1" | grep "\[${PrefixNm[$i]}\]" | sed "s/.*\[${PrefixNm[$i]}\]\([^\[]*\).*/\1/");
+    local KeyPrefix=$(eval echo \${$2[$i]})
+    if [ "$KeyPrefix" == "00" ]; then break; fi
+    local KeyID=$(echo "$1" | grep "$KeyPrefix" | sed "s/.*\[$KeyPrefix\]\([^\[]*\).*/\1/");
     if [ "$KeyID" != "" ]; then
       echo "$KeyID";
       return 0;

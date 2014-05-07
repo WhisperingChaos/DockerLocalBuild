@@ -65,14 +65,12 @@ function Add () {
 ##
 ###############################################################################
 function Remove () {
-  if ! [ "$1" = "Current" \
-      -o "$1" = "All"     \
-      -o "$1" = "AllExceptCurrent" ]; then return 1; fi
+  IdScopeAssert "$1"
   if [ "$2" = "" ]; then return 1; fi
   local BindDir=$(dirname "$0");
-  "$BindDir/ImageIDstream.sh" CompKey $1 "$2" | "$BindDir/ContainerRemove.sh";
+  "$BindDir/ImageIDstream.sh" "CompKey" "$1" "$2" | "$BindDir/ContainerMaintenance.sh" "Remove";
   if [ $? -ne 0 ]; then return 1; fi
-  "$BindDir/ImageIDstream.sh" $1Remove "$2";
+  "$BindDir/ImageIDstream.sh" "$1Remove" "$2";
   if [ $? -ne 0 ]; then return 1; fi
   return 0;
 }
@@ -97,14 +95,170 @@ function Remove () {
 ##
 ################################################################################
 function RemoveOnlyContainers () {
-  if ! [ "$1" = "Current" \
-      -o "$1" = "All"     \
-      -o "$1" = "AllExceptCurrent" ]; then return 1; fi
+  IdScopeAssert "$1"
   if [ "$2" = "" ]; then return 1; fi
   local BindDir=$(dirname "$0");
-  "$BindDir/ImageIDstream.sh" CompKey $1 "$2" | "$BindDir/ContainerRemove.sh";
+  "$BindDir/ImageIDstream.sh" "CompKey" "$1" "$2" | "$BindDir/ContainerMaintenance.sh" "Remove";
   if [ $? -ne 0 ]; then return 1; fi
   return 0;
+}
+###############################################################################
+##
+##  Purpose:
+##    Display container information based on the list of related GUIDS.
+##
+##  Input:
+##    $1 - Scope of Show operation: 
+##         "Current" - Show containers associated with current image 
+##                     GUID of the provided Image GUID List.
+##         "All"     - Show all containers associated to all GUIDs in the
+##                     provided Image GUID List.
+##         "AllExceptCurrent" - Show all containers associated to all GUIDS
+##                     in the povided Image GUID List except for current one.
+##    $2 - File path name to the Image GUID List.
+##    $3 - File path to report state.
+##    $4 - docker ps command optons.
+##
+###############################################################################
+function Show () {
+  IdScopeAssert "$1"
+  if [ "$2" = "" ]; then return 1; fi
+  local BindDir=$(dirname "$0");
+  "$BindDir/ImageIDstream.sh" CompKey $1 "$2" | "$BindDir/ContainerMaintenance.sh" "Show" "$3" "$4";
+  if [ $? -ne 0 ]; then return 1; fi
+  return 0;
+}
+###############################################################################
+##
+##  Purpose:
+##    Display docker image information for the given Image GUID List
+##    and defined scope.
+##
+##  Input:
+##    $1 - Scope of Show operation: 
+##         "Current" - Show containers associated with current image 
+##                     GUID of the provided Image GUID List.
+##         "All"     - Show all containers associated to all GUIDs in the
+##                     provided Image GUID List.
+##         "AllExceptCurrent" - Show all containers associated to all GUIDS
+##                     in the povided Image GUID List except for current one.
+##    $2 - File path name to the Image GUID List.
+##    $3 - File path to persistent report state.  Variables that must be
+##         preserved beyond current call stack.  For example, whether to
+##         emit report headings or not. 
+##    $4 - docker image command optons.
+##
+###############################################################################
+function Showimages () {
+  IdScopeAssert "$1"
+  export -f ImageIDPartialConstruct
+  if [ "$2" = "" ]; then return 1; fi
+  local BindDir=$(dirname "$0");
+  local APIacceptsSingleGUID=`echo "$4"|grep '\-v\|\-t'`
+  local ReportModifier=RPT
+  if [ "$APIacceptsSingleGUID" != "" ]; then ReportModifier=$ReportModifier"APIsingle"; fi
+  "$BindDir/ImageIDstream.sh" "$1" "$2" | xargs -I GUIDLong bash -c 'ImageIDPartialConstruct GUIDLong' | Showimages$ReportModifier "$3" "$4"
+  return 0;
+}
+###############################################################################
+##
+##  Purpose:
+##    Display docker image information for only the given Image GUIDs.  This
+##    function handles docker image options that don't accept a specific
+##    imgage GUID.
+##
+##  Input:
+##    $1 - File path to persistent report state.  Variables that must be
+##         preserved beyond current call stack.  For example, whether to
+##         emit report headings or not. 
+##    $2 - docker image command optons.
+##
+##  Output:
+##    SYSOUT - Writes docker report in same docker format controlled by
+##             report options.
+##
+###############################################################################
+function ShowimagesRPT () {
+  declare -A aImageGUID;
+  declare -a KeyPrefix;
+  KeyPrefix[0]='SK'
+  KeyPrefix[1]='00'
+  local ImageGUID;
+  while read ImageGUID; do
+    ImageGUID=`ImageIDobtain "$ImageGUID" 'KeyPrefix'`
+    aImageGUID["$ImageGUID"]="$ImageGUID"
+  done
+  local ImageGUIDColm=`echo "$1"|grep '\-q'`
+  if [ "$ImageGUIDColm" == "" ]; then
+    ImageGUIDColm='$3';
+  else
+    ImageGUIDColm='$1';
+  fi
+  local ReportHeadingEmitted='N';
+  if [ -e "$1" ]; then ReportHeadingEmitted='Y'; fi
+  local ImageOutput;
+  while read ImageLine; do
+    local IMAGEoutput=`echo "$ImageLine" | awk '{print $1;}'`
+    if [ "$IMAGEoutput" == "REPOSITORY" -a "$ReportHeadingEmitted" == "N" ]; then
+      echo "$ImageLine";
+      ReportHeadingEmitted='Y';
+      continue;
+    fi
+    IMAGEoutput=`echo "$ImageLine" | awk "{print $ImageGUIDColm;}"`
+    local KeyValue=${aImageGUID["$IMAGEoutput"]}
+    if [ "$KeyValue" == "$IMAGEoutput" ]; then echo "$ImageLine"; continue; fi
+  done < <(docker images $2)
+  if [ "$ReportHeadingEmitted" == 'Y' -a ! -e "$1" ]; then echo 'ReportHeadingEmitted=Y' > "$1"; fi
+ return 0;
+}
+###############################################################################
+##
+##  Purpose:
+##    Display docker image information for only the given image GUIDs.
+##    Since this docker report API permits specification of the image GUID,
+##    directly provide it to the command as an argument.
+##
+##  Input:
+##    $1 - File path to persistent report state.  Variables that must be
+##         preserved beyond current call stack.  For example, whether to
+##         emit report headings or not. 
+##    $2 - docker image command optons.
+##
+##  Output:
+##    SYSOUT - Docker report as formatted by docker report options.
+##
+###############################################################################
+function ShowimagesRPTAPIsingle () {
+  declare -a KeyPrefix;
+  KeyPrefix[0]='LK'
+  KeyPrefix[1]='SK'
+  KeyPrefix[2]='00'
+  local ImageGUID
+  while read ImageGUID; do
+    ImageGUID=`ImageIDobtain $ImageGUID 'KeyPrefix'`
+    echo "imageGUIDsingleAPI: $ImageGUID"
+    docker images $2 "$ImageGUID";
+  done
+}
+###############################################################################
+##
+##  Purpose:
+##    To verify the GUID scope trait.
+##
+##  Input:
+##    $1 - Image GUID scope value.
+##  
+##  Output:
+##    0 - scope is fine.
+##    Termination of script with error message.
+##
+###############################################################################
+function IdScopeAssert (){
+  if [   "$1" = "Current" \
+      -o "$1" = "All"     \
+      -o "$1" = "AllExceptCurrent" ]; then return 0; fi
+  echo "Abort: Invalid idscope specified: '$1'";
+  exit 1;
 }
 ###############################################################################
 ##
@@ -126,21 +280,28 @@ function RemoveOnlyContainers () {
 ##      $2 - Docker image name.
 ##      $3 - File path name Image GUID List.
 ##    When $1 == "Remove" or "RemoveOnlyContainers":
-##      $2 - Operation Name:
-##           "Current" - Remove only the most recent docker image.
-##           "All"     - Remove every docker image enumerated within the
-##                       Image GUID List.
+##      $2 - File path name Image GUID List.
 ##      $3 - File path name to the Image GUID List.
+##    When $1 == "Showps"
+##      $2 - Scope of Show operation. 
+##      $3 - File path name to the Image GUID List.
+##      $4 - File path to report state
+##      $5 - docker ps command optons.
+##    When $1 == "Showimages"
+##      $2 - Operaton Name
+##      $3 - File path name to Image GUID List.
+##      $4 - File path to report state
+##      $5 - docker images options.
 ##
 ###############################################################################
   case "$1" in
-    Add)                  ;;
-    Remove)               ;;
-    RemoveOnlyContainers) ;;
+    Add)                  Add    "$2" "$3" ;;
+    Remove)               Remove "$2" "$3" ;;
+    RemoveOnlyContainers) RemoveOnlyContainers "$2" "$3" ;;
+    Showps)               Show       "$2" "$3" "$4" "$5" ;;
+    Showimages)           Showimages "$2" "$3" "$4" "$5" ;;
     *) exit 1             ;;
   esac
-
-  $1 $2 $3;
   if [ $? -ne 0 ]; then exit 1; fi
 
 exit 0;

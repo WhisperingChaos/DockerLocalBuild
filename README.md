@@ -42,7 +42,7 @@ Although docker provides a Trusted Build system and GitHub integration that conc
 
 ### Installing
 
-Assumes GNU "make" has already been installed.  This makefile was developed using GNU "make" Version 3.81 within an Ubuntu 12.04 environment.
+Assumes GNU "make" and "bash" have already been installed.  This makefile was developed using GNU make version 3.81, GNU bash version 4.2.25(1)-release within an Ubuntu 12.04 environment.
 + Copy the provided ["makefile"](https://github.com/WhisperingChaos/DockerLocalBuild/blob/master/makefile) to either an existing or newly created Root Resource Directory.
 + Copy the ["script"](https://github.com/WhisperingChaos/DockerLocalBuild/tree/master/scripts) directory and its contents to the Root Resource Directory.
 + Copy the template ["Component"](https://github.com/WhisperingChaos/DockerLocalBuild/blob/master/Component) file to the Root Resource Directory. 
@@ -140,9 +140,8 @@ A sample makefile project containing a makefile, the Component file and Componen
 + Extract its contents, preserving the directory structure, to some directory.
 + Start a command line console.
 + Make the "sample" directory current.
-+ Run the Build using the directions [above](#how-to-run-make).  As an alternative, consider running the test script before 
-
-
++ Before running the sample build for the first time, consider executing the [test script](#test-script).  A successful test will likely ensure the reliability of the build.
++ Run the Build using the directions [above](#how-to-run-make).
 
 ### Test Script
 

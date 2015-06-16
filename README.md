@@ -1,4 +1,4 @@
 
 ## Project Terminated.
 
-## Superseded by [Docker Local Workbench](https://github.com/WhisperingChaos/DockerLocalWorkbench).
+## Superseded by [Developer Local Workbench for Docker](https://github.com/WhisperingChaos/DeveloperLocalWorkbenchForDocker).
